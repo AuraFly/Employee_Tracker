@@ -1,0 +1,24 @@
+{
+  "name": "employee_tracker",
+  "version": "1.0.0",
+  "description": "Allows management of a company's employee database.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AuraFly/Employee_Tracker.git"
+  },
+  "author": "Jordan Covarrubias",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AuraFly/Employee_Tracker/issues"
+  },
+  "homepage": "https://github.com/AuraFly/Employee_Tracker#readme",
+  "dependencies": {
+    "console.table": "^0.10.0",
+    "inquirer": "^8.2.4",
+    "mysql2": "^2.3.3"
+  }
+}
