@@ -17,11 +17,11 @@ VALUES ('Network Analyst I', 1, 50000),
     ('Ticket Flow Administrator', 3  , 70000);
 
 INSERT INTO employees (first_name, last_name, jobprofile_id, manager_id)
-VALUES ('Lance', 'Soda', 1, NULL),
-    ('Andrew', 'Bacon', 2, 2),
-    ('Paul', 'Risoto', 3, 3),
-    ('Martin', 'Celery', 4, NULL),
-    ('Tomasz', 'Maple', 5, NULL),
-    ('Jordan', 'Carrot', 6, 1),
+VALUES ('Lance', 'Soda', 7, NULL),
+    ('Andrew', 'Bacon', 4, 2),
+    ('Paul', 'Risoto', 4, 3),
+    ('Martin', 'Celery', 2, NULL),
+    ('Tomasz', 'Maple', 3, NULL),
+    ('Jordan', 'Carrot', 5, 1),
     ('Jamie', 'Mustard', 7, NULL),
-    ('Randall', 'Salad', 8, NULL);
+    ('Randall', 'Salad', 1, NULL);

@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/AuraFly/Employee_Tracker#readme",
   "dependencies": {
+    "colors": "^1.4.0",
     "console.table": "^0.10.0",
     "inquirer": "^8.2.4",
     "mysql2": "^2.3.3"
