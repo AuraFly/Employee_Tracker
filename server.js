@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
-const sql = require('mysql2');
+const sql2 = require('mysql2');
+const SQL = require('sql-template-strings')
 const colors = require('colors');
 const cons = require('console.table');
 
@@ -20,7 +21,7 @@ ___________                     __
 `);
 
 
-const conn = sql.createConnection({
+const conn = sql2.createConnection({
     host: 'localhost',
     user: 'root',
     password: 'Password123',
@@ -68,6 +69,7 @@ conn.query(`SELECT first_name, last_name FROM employees WHERE manager_id IS NOT 
     });
 });
 };
+
 const mainQs = [
     {
         type: 'list',
@@ -86,19 +88,6 @@ const mainQs = [
     ],
     },
     {
-        type: 'input',
-        message: "What is the name of the Department?",
-        name: 'dept',
-        when: (answers) => answers.landing === 'Add a Department'.cyan,
-    },
-    {
-        type: 'list',
-        message: "Which employee would you like to update?",
-        name: 'empU',
-        when: (answers) => answers.landing === 'Update an Employees Profile'.cyan,
-        choices: employees
-    },
-    {
         type: 'list',
         message: "Are you sure you would like to exit?",
         name: 'exit',
@@ -107,6 +96,74 @@ const mainQs = [
     },
 ];
 
+//Holds inquirer questions for employee update option, afterwards uses a .then to continue functions to put the
+//profile id, first name, and last name into an update query, then sends it to SQL for the update.
+const updQs = () => {
+    inquirer
+        .prompt([
+            {
+                type: 'list',
+                message: "Which employee would you like to update?",
+                name: 'empU',
+                choices: employees
+            },
+            {
+                type: 'list',
+                message: "Which profile would you like to assign to this person?",
+                name: 'empU1',
+                choices: profiles
+            },
+        ])
+        .then((res) => {
+            let empName = `${res.empU}`;
+            let eArr = empName.split(" ");
+            let tid;
+            
+            conn.query(SQL`SELECT (id) FROM jobprofile WHERE title = ${res.empU1}`, (err, resp) => {
+                if (err) throw err;
+                tid = resp[0].id
+
+                conn.query(SQL`UPDATE employees SET jobprofile_id = ${tid} WHERE first_name = ${eArr[0]} AND last_name = ${eArr[1]}`, (err, resp) => {
+                    if (err) throw err;
+                        console.error(err)
+                        console.log('Employee has been updated!'.brightYellow);
+
+            init()
+            });
+        });
+    });
+};
+
+//Holds inquirer questions for department addition, afterwards uses a .then to continue functions to put the
+//new department name into the table using the userInput array, even though there is only one object.
+const deptQs = () => {
+    inquirer
+        .prompt([
+            {
+                type: 'input',
+                message: "What is the name of the Department?",
+                name: 'dept',
+            },
+        ])
+        .then((res) => {
+            let squery = "INSERT INTO department (dept_name) VALUES ?";
+            let userInput = [
+                [`${res.dept}`],
+            ];
+
+            conn.query(squery, [userInput], function(err) {
+                if (err) throw err;
+                });
+                    console.log('New Department has been added!'.brightYellow);
+                
+            init();
+        });
+};
+
+
+
+//Holds inquirer questions for job profile 'role' addition, afterwards uses a .then to continue functions to find the dId 'department id',
+//then puts the title, salary, and department id into an array called userInput and passes that info to SQL.
 const jobpQs = () => {
     inquirer
         .prompt([
@@ -127,9 +184,30 @@ const jobpQs = () => {
                 choices: depts
             },
 ])
-init();
+.then((res) => {
+let dId;
+    conn.query(SQL`SELECT (id) FROM department WHERE dept_name = ${res.jobp2}`, (err, resp) => {
+        if (err) throw err;
+            dId = resp[0].id
+
+            let squery = "INSERT INTO jobprofile (title, department_id, salary) VALUES ?";
+            let userInput = [
+                [`${res.jobp}`, dId, `${res.jobp1}`],
+            ];
+
+            conn.query(squery, [userInput], function(err) {
+                if (err) throw err;
+                });
+
+                console.log('New profile has been added!'.brightYellow);
+
+                init();
+        })
+    })
 };
 
+//Holds inquirere questions for employee addition, afterwards uses a .then to continue functions to find the PID and MID,
+//then puts both plus the first name and last name into an array called userInput and passes that info to SQL.
 const empQs = () => {
     inquirer
         .prompt([
@@ -145,7 +223,7 @@ const empQs = () => {
             },
             {
                 type: 'list',
-                message: "What is the employee's role?",
+                message: "What is the employee's job?",
                 name: "emp3",
                 choices: profiles
             },
@@ -156,7 +234,39 @@ const empQs = () => {
                 choices: mgrs
             },
 ]) 
+.then((res) => {
+let pid;
+let mgrname = `${res.emp4}`;
+let mArr = mgrname.split(" ");
+let mid; 
+    conn.query(SQL`SELECT (id) FROM jobprofile WHERE title = ${res.emp3} `, (err, resp) => {
+        if (err) {
+            console.error(err)
+        };
+            pid = resp[0].id;
+
+        conn.query(`SELECT (id) FROM employees WHERE first_name=(?) AND last_name=(?)`, [mArr[0], mArr[1]], (err, re) => {
+            if (err) {
+                console.error(err)
+            };
+                mid = re[0].id;
+
+let userInput = [
+    [`${res.emp1}`, `${res.emp2}`, pid, mid],
+];
+
+let squery = "INSERT INTO employees (first_name, last_name, jobprofile_id, manager_id ) VALUES ?";
+
+            conn.query(squery, [userInput], function(err) {
+                if (err) throw err;
+                });
+
+console.log('Employee has been created!'.brightYellow)
+
 init()
+            });
+        });
+    });
 };
 
 //function that shows job profiles
@@ -174,7 +284,7 @@ init();
 });
 };
 
-//function that shows employees
+//function that shows employees via a select query, then fires the questions again using init.
 const viewEmp = () => {
     startUp();
     
@@ -188,25 +298,30 @@ const viewEmp = () => {
     
     init();
     });
-    };
+};
 
+//simple function to view existing departments.
 function viewDept() {
     startUp();
     console.table(depts);
     init();
-}
+};
 
 const init =  async () => {
-    console.log('Welcome to the Employee Tracker!'.green)
     try {
+        console.log('Welcome to the Employee Tracker!'.green)
         const answers = await inquirer.prompt(mainQs);
         if (answers.landing === 'Add a Job Profile'.cyan) {
             jobpQs();
             return;
-        } else if (answers.emp === 'Add an Employee'.cyan) {
+        } else if (answers.landing === 'Add an Employee'.cyan) {
             empQs();
             return;
-        } else if (answers.empU === 'Update an Employees Profile'.cyan) {
+        } else if (answers.landing === 'Add a Department'.cyan) {
+            deptQs();
+            return;
+        } else if (answers.landing === 'Update an Employees Profile'.cyan) {
+            updQs();
             return;
         } else if (answers.landing === 'View Departments'.cyan) {
             viewDept();
