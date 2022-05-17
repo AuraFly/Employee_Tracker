@@ -16,13 +16,15 @@ The application works to store employees, their job profiles, departments, and m
 
 
   # Installation
-  Utilizes node and MySQL for database storage. Source the schema and seeds in order to pre-populate database.
+  Utilizes node and MySQL for database storage.
+   Source the schema and seeds in order to pre-populate database.
 NPM packeges used:
-    "colors": "^1.4.0",
-    "console.table": "^0.10.0",
-    "inquirer": "^8.2.4",
-    "mysql2": "^2.3.3",
-    "sql-template-strings": "^2.2.2"
+* colors 1.4.0
+
+* console.table 0.10.0
+* inquirer 8.2.4
+* mysql2 2.3.3
+* sql-template-strings 2.2.2
 
   # Usage
 Upon entering a terminal from the root directory, the user will launch using 'node server.js' this will launch the main application and prompt the user to:
