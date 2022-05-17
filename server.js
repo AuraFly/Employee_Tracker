@@ -34,7 +34,7 @@ const profiles = [];
 const employees = [];
 const mgrs = [];
 
-//startup kicks off below queries to feed the arrays above with starting data.
+//startup kicks off below queries to update the above arrays whenever a change is made.
 startUp();
 
 //Queries that should feed the above arrays | each works the same mostly looping through the result rows, taking the values needed, and pushing them into arrays
@@ -42,6 +42,7 @@ startUp();
 function startUp() {
 conn.query(`SELECT dept_name FROM department`, (err, res) => {
     if (err) throw err;
+    depts.length = 0;
     res.forEach(function(row) {
         depts.push(row.dept_name);
     });
@@ -51,19 +52,24 @@ conn.query(`SELECT dept_name FROM department`, (err, res) => {
 conn.query(`SELECT title FROM jobprofile`, (err, res) => {
     if (err) throw err;
     res.forEach(function(row) {
+        if (!profiles.includes(row.title))
         profiles.push(row.title);
     });
 });
+
 //employees query
 conn.query(`SELECT first_name, last_name FROM employees`, (err, res) => {
     if (err) throw err;
+    employees.length = 0;
     res.forEach(function(row) {
         employees.push(`${row.first_name} ${row.last_name}`);
     });
 });
+
 //mgrs query
 conn.query(`SELECT first_name, last_name FROM employees WHERE manager_id IS NOT NULL`, (err, res) => {
     if (err) throw err;
+    mgrs.length = 0;
     res.forEach(function(row) {
         mgrs.push(`${row.first_name} ${row.last_name}`);
     });
@@ -80,10 +86,13 @@ const mainQs = [
         'View Departments'.cyan,
         'View Job Profiles'.cyan,
         'View Employees'.cyan,
+        'View Employees by Manager'.cyan,
+        'View Employees by Department'.cyan,
         'Add a Department'.cyan,
         'Add a Job Profile'.cyan,
         'Add an Employee'.cyan,
         'Update an Employees Profile'.cyan,
+        'Delete an Employee, Profile, or Department'.cyan,
         'Exit'.red,
     ],
     },
@@ -98,6 +107,7 @@ const mainQs = [
 
 //Holds inquirer questions for employee update option, afterwards uses a .then to continue functions to put the
 //profile id, first name, and last name into an update query, then sends it to SQL for the update.
+// ****Super side NOTE - This is the only function I couldnt get literals working in. Its still a mystery to me since they are working in almost every other query.
 const updQs = () => {
     inquirer
         .prompt([
@@ -114,23 +124,110 @@ const updQs = () => {
                 choices: profiles
             },
         ])
-        .then((res) => {
-            let empName = `${res.empU}`;
-            let eArr = empName.split(" ");
-            let tid;
-            
-            conn.query(SQL`SELECT (id) FROM jobprofile WHERE title = ${res.empU1}`, (err, resp) => {
+    .then((res) => {
+        let pId;
+        let empName = `${res.empU}`;
+        let eArr = empName.split(" ");
+        conn.query(`SELECT (id) FROM jobprofile WHERE title = (?)`, res.empU1, (err, resp) => {
+            if (err) throw err;
+                pId = resp[0].id
+
+            let inputs = [pId, eArr[0], eArr[1]];
+
+            conn.query(`UPDATE employees SET jobprofile_id = (?) WHERE first_name = (?) AND last_name = (?)`,inputs, (err, resp) => {
                 if (err) throw err;
-                tid = resp[0].id
+                console.log('Employees profile has been updated!'.brightYellow);
 
-                conn.query(SQL`UPDATE employees SET jobprofile_id = ${tid} WHERE first_name = ${eArr[0]} AND last_name = ${eArr[1]}`, (err, resp) => {
-                    if (err) throw err;
-                        console.error(err)
-                        console.log('Employee has been updated!'.brightYellow);
+                startUp();
+                init();
 
-            init()
             });
         });
+    });
+};
+
+//Holds inquirer questions for deletion of employee, department, or profile - afterwards uses a .then followed by if/else statements
+//that handle the individual functions depending on the answers.
+const delEntry = () => {
+    inquirer
+        .prompt([
+            {
+                type: 'list',
+                message: "What whould you like to do?".brightBlue,
+                name: 'del',
+                choices: 
+            [
+                'Delete an Employee'.red,
+                'Delete a Profile'.red,
+                'Delete a Department'.red,
+                'Nevermind'.cyan,
+            ],
+            },
+            {
+                type: 'list',
+                message: "Which Employee would you like to remove??",
+                name: 'del1',
+                when: (answers) => answers.del === 'Delete an Employee'.red,
+                choices: employees
+            },
+            {
+                type: 'list',
+                message: "Which job profile would you like to remove?",
+                name: 'del2',
+                when: (answers) => answers.del === 'Delete a Profile'.red,
+                choices: profiles
+            },
+            {
+                type: 'list',
+                message: "Which Department would you like to remove?",
+                name: 'del3',
+                when: (answers) => answers.del === 'Delete a Department'.red,
+                choices: depts
+            },
+        ])
+        .then((res) => {
+            if (res.del === 'Delete a Profile'.red) {
+                let pId;
+                conn.query(SQL`SELECT (id) FROM jobprofile WHERE title = ${res.del2}`, (err, resp) => {
+                    if (err) throw err;
+                        pId = resp[0].id
+
+                    conn.query(SQL`DELETE FROM jobprofile WHERE id = ${pId}`, (err, re) => {
+                        if (err) {
+                            console.error(err)}
+                            console.log('Job Profile has been deleted!'.brightRed);
+                        });
+                    });
+
+                    startUp();
+                    init();
+
+                        } else if (res.del === 'Delete an Employee'.red) {
+                            let empName = `${res.del1}`;
+                            let eArr = empName.split(" ");
+
+                            conn.query(SQL`DELETE FROM employees WHERE first_name = ${eArr[0]} AND last_name = ${eArr[1]}`, (err, resp) => {
+                                if (err) throw err;
+                                    console.log('The employee has been deleted!'.brightRed);
+                            });
+
+                        startUp();
+                        init()
+
+                            } else if (res.del === 'Delete a Department'.red) {
+                                conn.query(SQL`DELETE FROM department WHERE dept_name = ${res.del3}`, (err, re) => {
+                                    if (err) throw err;
+                                        console.log('The department has been deleted!'.brightRed);
+                                });
+
+                                startUp();
+                                init()
+
+                                } else if (res.del === 'Nevermind'.cyan) {
+
+                                        startUp();
+                                        init()
+        };
     });
 };
 
@@ -151,16 +248,15 @@ const deptQs = () => {
                 [`${res.dept}`],
             ];
 
-            conn.query(squery, [userInput], function(err) {
+            conn.query(squery, [userInput],  (err, resp) => {
                 if (err) throw err;
                 });
                     console.log('New Department has been added!'.brightYellow);
-                
+
+            startUp();
             init();
         });
 };
-
-
 
 //Holds inquirer questions for job profile 'role' addition, afterwards uses a .then to continue functions to find the dId 'department id',
 //then puts the title, salary, and department id into an array called userInput and passes that info to SQL.
@@ -201,6 +297,7 @@ let dId;
 
                 console.log('New profile has been added!'.brightYellow);
 
+                startUp();
                 init();
         })
     })
@@ -263,13 +360,14 @@ let squery = "INSERT INTO employees (first_name, last_name, jobprofile_id, manag
 
 console.log('Employee has been created!'.brightYellow)
 
-init()
+startUp();
+init();
             });
         });
     });
 };
 
-//function that shows job profiles
+//function that shows job profiles when selected.
 const viewJob = () => {
 startUp();
 
@@ -287,7 +385,6 @@ init();
 //function that shows employees via a select query, then fires the questions again using init.
 const viewEmp = () => {
     startUp();
-    
     conn.query(
         `SELECT employees.id AS ID, concat(employees.first_name, " " , employees.last_name) AS Name, jobprofile.title AS Title, department.dept_name AS Department, jobprofile.salary AS Salary,
         concat(manager.first_name, " " , manager.last_name) AS Manager
@@ -300,13 +397,40 @@ const viewEmp = () => {
     });
 };
 
-//simple function to view existing departments.
+//function that shows employees by manager
+const vempbyMgr = () => {
+    conn.query(
+        `SELECT manager.id AS ID, concat(manager.first_name, " " , manager.last_name) AS Manager, concat(employees.first_name, " " , employees.last_name) AS Employee
+        FROM employees LEFT JOIN employees manager ON employees.manager_id = manager.id ORDER BY Manager ASC`,
+    (err, res) => {
+        if (err) throw err;
+        console.table(res);
+    
+    init();
+});
+};
+
+//function that shows employees by department
+const vempbyDept = () => {
+    conn.query(
+        `SELECT department.id AS ID, department.dept_name AS Department, concat(employees.first_name, " " , employees.last_name) AS Employee
+        FROM employees JOIN jobprofile ON employees.jobprofile_id = jobprofile.id JOIN department ON jobprofile.department_id = department.id ORDER BY Department`,
+    (err, res) => {
+        if (err) throw err;
+        console.table(res);
+    
+    init();
+});
+};
+
+//small function to view existing departments.
 function viewDept() {
     startUp();
     console.table(depts);
     init();
 };
 
+//init function will point to different functions listed above depending on the main menu selections.
 const init =  async () => {
     try {
         console.log('Welcome to the Employee Tracker!'.green)
@@ -331,6 +455,15 @@ const init =  async () => {
             return;
         } else if (answers.landing === 'View Employees'.cyan) {
             viewEmp();
+            return;
+        } else if (answers.landing === 'View Employees by Manager'.cyan) {
+            vempbyMgr();
+            return;
+        } else if (answers.landing === 'View Employees by Department'.cyan) {
+            vempbyDept();
+            return;
+        } else if (answers.landing === 'Delete an Employee, Profile, or Department'.cyan) {
+            delEntry();
             return;
         }
 
